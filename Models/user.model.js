@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import validator from "validator";
+import bcrypt from "bcryptjs";
 
 const addressSchema = new mongoose.Schema({
     city: {
@@ -10,9 +11,9 @@ const addressSchema = new mongoose.Schema({
         type: String,
         required: [true, "Please type your street!"]
     },
-    building: {
+    building_number: {
         type: String,
-        required: [true, "Please type your building!"]
+        required: [true, "Please type your building number!"]
     }
 });
 
@@ -40,11 +41,13 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         unique: true,
-        validate: [{
+        validate: {
             validator: function (v) {
                 return validator.isMobilePhone(v, 'ar-EG');
-            }
-        }, 'Please provide a valid phone number']
+            },
+            message: 'Please enter a valid phone number'
+        },
+        
     },
     password: {
         type: String,
@@ -65,20 +68,36 @@ const userSchema = new mongoose.Schema({
     },
     is_active: {
         type: Boolean,
-        default: true
+        default: true 
     },
 
     is_verified: {
         type: Boolean,
         default: false
     },
-    address:[addressSchema],
+    address: [addressSchema],
 
     // paymentDetails: [paymentDetailSchema],
-    // wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
 
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    versionKey: false
+});
 
+userSchema.pre('save', async function () {
+    if (!this.isModified('password')) return;
+    this.password = await bcrypt.hash(this.password, 12);
+    this.passwordConfirm = undefined;
+});
+
+
+userSchema.methods.correctPassword = async function(
+  candidatePassword,
+  userPassword
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
 
 
 const User = mongoose.model("User", userSchema);
