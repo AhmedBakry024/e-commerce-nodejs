@@ -1,14 +1,15 @@
+import jwt from "jsonwebtoken";
+
 import { sendEmail } from "../Utils/Email/sendEmail.js";
 import User from "../Models/user.model.js";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import catchAsyncError from "../Utils/catchAsyncError.js";
+import AppErrors from "../Utils/appErrors.js";
 
 const signToken = (id, role, email) => {
   return jwt.sign({ id, role, email }, process.env.JWT_SECRET);
 };
 
-export const register = async (req, res) => {
-  try {
+export const register = catchAsyncError(async (req, res, next) => {
     const newUser = await User.create({
       name: req.body.name,
       email: req.body.email,
@@ -23,13 +24,40 @@ export const register = async (req, res) => {
       message: "User created successfully",
       data: newUser
     });
+});
 
-  } catch (err) {
-    res.status(400).json({
-      error: err.message
-    });
+export const login = catchAsyncError(async (req, res, next) => {
+  let foundUser = req.foundUser;
+  if (!await foundUser.correctPassword(req.body.password, foundUser.password)) {
+    return next(new AppErrors("Incorrect Email or Password", 401));
   }
-};
+  const token = signToken(foundUser._id, foundUser.role, foundUser.email);
+  foundUser.password = undefined;
+  return res.json({ message: "Welcome", data: foundUser, token: token });
+});
+
+
+export const logout = catchAsyncError(async (req, res, next) => {
+
+});
+
+
+export const forgotPassword = catchAsyncError(async (req, res, next) => {
+
+});
+
+export const resetPassword = catchAsyncError(async (req, res, next) => {
+
+});
+
+export const updatePassword = catchAsyncError(async (req, res, next) => {
+
+});
+
+
+
+
+
 
 export const verifyAccount = (req, res) => {
   let verifyEmail = req.params.email;
@@ -40,30 +68,4 @@ export const verifyAccount = (req, res) => {
     await User.findOneAndUpdate({ email: decoded }, { is_verified: true })
     res.status(200).json({ message: "Account Verified" })
   })
-}
-
-export const login = async (req, res) => {
-  let foundUser = req.foundUser;
-  if (!await foundUser.correctPassword(req.body.password, foundUser.password)) {
-    return res.status(422).json({ message: "Invalid Password or Email" });
-  }
-  const token = signToken(foundUser._id, foundUser.role, foundUser.email);
-  foundUser.password = undefined;
-  return res.json({ message: "Welcome", data: foundUser, token: token });
-}
-
-export const logout = (req, res) => {
-  res.send("Logout");
-}
-
-export const forgotPassword = (req, res) => {
-  res.send("Forgot Password");
-}
-
-export const resetPassword = (req, res) => {
-  res.send("Reset Password");
-}
-
-export const updatePassword = (req, res) => {
-  res.send("Update Password");
 }
