@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
             },
             message: 'Please enter a valid phone number'
         },
-        
+
     },
     password: {
         type: String,
@@ -68,7 +68,7 @@ const userSchema = new mongoose.Schema({
     },
     is_active: {
         type: Boolean,
-        default: true 
+        default: true
     },
 
     is_verified: {
@@ -79,6 +79,10 @@ const userSchema = new mongoose.Schema({
 
     // paymentDetails: [paymentDetailSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+
+    passwordChangedAt: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
 
 }, {
     timestamps: true,
@@ -91,13 +95,27 @@ userSchema.pre('save', async function () {
     this.passwordConfirm = undefined;
 });
 
+userSchema.pre("save", async function () {
+    if (!this.isModified("password") || this.isNew) return;
+    this.passwordChangedAt = Date.now() - 1000;
+})
 
-userSchema.methods.correctPassword = async function(
-  candidatePassword,
-  userPassword
+userSchema.methods.correctPassword = async function (
+    candidatePassword,
+    userPassword
 ) {
-  return await bcrypt.compare(candidatePassword, userPassword);
+    return await bcrypt.compare(candidatePassword, userPassword);
 };
+
+userSchema.methods.passwordChangedAfter = function (jwt_iat) {
+    if (this.passwordChangedAt) {
+        const changedPasswordTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+        return jwt_iat < changedPasswordTimestamp;
+    }
+    return false;
+};
+
+
 
 
 const User = mongoose.model("User", userSchema);
