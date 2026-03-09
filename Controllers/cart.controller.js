@@ -1,17 +1,19 @@
 import User from "../Models/user.model.js"
 import jwt from "jsonwebtoken"
 import Product from "../Models/product.model.js"
+import {catchAsyncError} from "../Utils/catchAsyncError.js"
 
-const productExists = async (productname)=>{
-        let productdata = await Product.findOne({name : productname})
+const productExists = catchAsyncError( async (productId)=>{
+        let productdata = await Product.findOne({_id : productId})
         if(!productdata){
-                return `${productname} not found`
+                return `${productId} not found`
         }
         else
                 return productdata
-}
-const stockCheck = async (productname, productquantity) =>{
-        let productinfo = await productExists(productname)
+})
+
+const stockCheck = catchAsyncError(async (productId, productquantity) =>{
+        let productinfo = await productExists(productId)
         if(typeof productinfo !== "string"){
                 let stockAvailability = productinfo.stock
                 if(stockAvailability >= productquantity)
@@ -23,25 +25,25 @@ const stockCheck = async (productname, productquantity) =>{
         else
                 return productinfo
         
-}
-export const add_items = async(req,res) =>{
+})
+
+export const add_items = catchAsyncError(async(req,res) =>{
         let errors_quantity = []
         let errors_product = []
-        let token  = req.headers.token;
-        try {
-                let decoded = jwt.verify(token ,process.env.JWT_SECRET)
+                let decoded = req.user
                 if(decoded.role == "user") {
                 let user = await User.findById(decoded.id)
                 if(user.is_active){
-                let items  = Array.isArray(req.body) ? req.body : [req.body]
-                for(let item of items){
-                        if (user.cart_items.has(item.productname)){
-                                let currentquantity = user.cart_items.get(item.productname)
-                                let checkedquantity = await stockCheck(item.productname , currentquantity + item.quantity)
+                for(let item of req.body.cart_info){
+                        let product = user.cart_items.find(element=> element.product.toString() === item.productId)
+                        let finalquantity = item.quantity || 1
+                        if (product){
+                                let currentquantity = product.quantity
+                                let checkedquantity = await stockCheck(item.productId , currentquantity + finalquantity)
                                 if(typeof checkedquantity !== "string" ){
-                                        user.cart_items.set(item.productname , currentquantity + item.quantity)
+                                        product.quantity= currentquantity + finalquantity
                                 }
-                                else if(checkedquantity == `${item.productname} not found`){
+                                else if(checkedquantity == `${item.productId} not found`){
                                         errors_product.push(checkedquantity)
                                 }
                                 else {
@@ -49,11 +51,14 @@ export const add_items = async(req,res) =>{
                                 }
                         }
                         else{
-                                let checked = await stockCheck(item.productname , item.quantity)
+                                let checked = await stockCheck(item.productId, finalquantity)
                                 if(typeof checked  !== "string"){
-                                      user.cart_items.set(item.productname , item.quantity)
+                                      user.cart_items.push({
+                                        product : item.productId,
+                                        quantity : finalquantity
+                                      })
                                 }
-                                else if(checked == `${item.productname} not found`){
+                                else if(checked == `${item.productId} not found`){
                                         errors_product.push(checked)
                                 }
                                 else {
@@ -62,18 +67,16 @@ export const add_items = async(req,res) =>{
                         }
                 };
                 await user.save();
-                let cart_data = Object.fromEntries(user.cart_items)
-
                 if (errors_product.length == 0 && errors_quantity.length == 0)
-                        return res.status(200).json({message : "All items added successfully" , cart: cart_data })
+                        return res.status(200).json({message : "All items added successfully" , cart: user.cart_items })
                 else if(errors_product.length == 0 && errors_quantity.length != 0){
-                        return res.status(200).json({message : "Some items couldn't be added" , stock_unavailable : errors_quantity , cart:cart_data})
+                        return res.status(200).json({message : "Some items couldn't be added" , stock_unavailable : errors_quantity , cart: user.cart_items})
                 }
                 else if(errors_product.length != 0 && errors_quantity.length == 0){
                         return res.status(400).json({data : errors_product})
                 }
                 else{
-                        return res.status(200).json({notfoundproducts : errors_product , fewquantity : errors_quantity , cart : cart_data})
+                        return res.status(200).json({notfoundproducts : errors_product , fewquantity : errors_quantity , cart :  user.cart_items})
                 }
                 }
                 else{
@@ -83,21 +86,16 @@ export const add_items = async(req,res) =>{
         else{
                 return res.status(403).json({message : "You don't have permission to add items in cart"})
         }           
-        }
-        catch(err){
-                return res.status(401).json({message : "Invalid Token"})
-
-        }
-        
-}
+})
 
 
-export const remove_items = async(req , res)=>{
+export const remove_items = catchAsyncError(async(req , res)=>{
         let errors_quantity = []
         let errors_product = []
-        let token = req.headers.token;
-        try {
-                let decoded = jwt.verify(token , process.env.JWT_SECRET)
+        // let token = req.headers.token;
+        // try {
+                // let decoded = jwt.verify(token , process.env.JWT_SECRET)
+                let decoded = req.user
                 if(decoded.role == "user"){
                         let user = await User.findById(decoded.id)
                         if(user.is_active){
@@ -148,7 +146,18 @@ export const remove_items = async(req , res)=>{
                 }
                 
 
-        }catch(err){
-                res.status(401).json({message : "Invalid Token"})
-        }
-} 
+        // }catch(err){
+        //         res.status(401).json({message : "Invalid Token"})
+        // }
+})
+
+export const checkout = catchAsyncError( async (req , res)=>{
+
+
+
+})
+
+
+
+
+

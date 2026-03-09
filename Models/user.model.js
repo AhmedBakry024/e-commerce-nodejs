@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import validator from "validator";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { required } from "joi";
 
 const addressSchema = new mongoose.Schema({
     city: {
@@ -81,10 +82,21 @@ const userSchema = new mongoose.Schema({
     // paymentDetails: [paymentDetailSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],    
     
-    cart_items :{
-        type : Map,
-        of : Number
-    },
+    cart_items :[
+        {
+            product :{
+                type: mongoose.Schema.Types.ObjectId , 
+                ref: 'Product',
+                required : True
+            },
+            quantity :{
+                type: Number,
+                default:1
+            }
+
+        }
+
+    ],
     
     passwordChangedAt: Date,
     passwordResetToken: String,
