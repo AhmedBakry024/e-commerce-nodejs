@@ -79,16 +79,18 @@ const userSchema = new mongoose.Schema({
 
     // paymentDetails: [paymentDetailSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],    
-    
     cart_items :{
         type : Map,
         of : Number
     },
     
+=======
+
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
 
+>>>>>>> main
 }, {
     timestamps: true,
     versionKey: false

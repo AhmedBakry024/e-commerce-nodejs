@@ -5,8 +5,11 @@ import express from "express";
 import { dbConnect } from "./Database/dbConnect.js";
 import userRouter from "./Routes/user.route.js";
 import CartRoutes from "./Routes/cart.route.js";
+=======
 import AppErrors from "./Utils/appErrors.js";
 import globalErrorHandler from "./Controllers/globalError.controller.js";
+>>>>>>> main
+
 await dbConnect(); 
 
 const app = express();
