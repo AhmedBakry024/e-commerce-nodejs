@@ -1,0 +1,93 @@
+import User from "../Models/user.model.js"
+import jwt from "jsonwebtoken"
+import Product from "../Models/product.model.js"
+
+
+const productExists = async (productname)=>{
+        let productdata = await Product.findOne({name : productname})
+        if(!productdata){
+                return (`${productname} not found`)
+        }
+        else
+                return productdata
+}
+const stockCheck = async (productname, productquantity) =>{
+        let productinfo = await productExists(productname)
+        if(typeof productinfo != "string"){
+                let stockAvailability = productinfo.stock
+                if(stockAvailability >= productquantity)
+                return productinfo
+        else{
+                return(`Only ${stockAvailability} items in the stock from ${productinfo.name}`)
+        }
+        }
+        else
+                return productinfo
+        
+}
+export const add_items = async(req,res) =>{
+        let errors_quantity = []
+        let errors_product = []
+        let token  = req.headers.token;
+        try {
+                let decoded = jwt.verify(token ,process.env.JWT_SECRET)
+                if(decoded.role == "user") {
+                let user = await User.findById(decoded.id)
+                if(user.is_active){
+                let items  = Array.isArray(req.body) ? req.body : [req.body]
+                for(let item of items){
+                        if (user.cart_items.has(item.productname)){
+                                let currentquantity = user.cart_items.get(item.productname)
+                                let checkedquantity = await stockCheck(item.productname , currentquantity + item.quantity)
+                                if(typeof checkedquantity != "string" ){
+                                        user.cart_items.set(item.productname , currentquantity + item.quantity)
+                                }
+                                else if(checkedquantity == `${item.productname} not found`){
+                                        errors_product.push(checkedquantity)
+                                }
+                                else {
+                                        errors_quantity.push(checkedquantity)
+                                }
+                        }
+                        else{
+                                let checked = await stockCheck(item.productname , item.quantity)
+                                if(typeof checked  != "string"){
+                                      user.cart_items.set(item.productname , item.quantity)
+                                }
+                                else if(checked == `${item.productname} not found`){
+                                        errors_product.push(checked)
+                                }
+                                else {
+                                        errors_quantity.push(checked)
+                                }
+                        }
+                };
+                await user.save();
+                let cart_data = Object.fromEntries(user.cart_items)
+
+                if (errors_product.length == 0 && errors_quantity.length == 0)
+                        return res.status(200).json({message : "All items added successfully" , cart: cart_data })
+                else if(errors_product.length == 0 && errors_quantity.length != 0){
+                        return res.status(200).json({message : "The rest of the items added successfully" , data : errors_quantity})
+                }
+                else if(errors_product.length != 0 && errors_quantity.length == 0){
+                        return res.status(400).json({data : errors_product})
+                }
+                else{
+                        return res.status(200).json({notfoundproducts : errors_product , fewquantity : errors_quantity})
+                }
+                }
+                else{
+                        return res.status(403).json({message :"User not found"})
+                }       
+        }     
+        else{
+                return res.status(403).json({message : "You don't have permission to add items in cart"})
+        }           
+        }
+        catch(err){
+                return res.status(401).json({message : "Invalid Token"})
+
+        }
+        
+}
