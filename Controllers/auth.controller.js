@@ -10,12 +10,15 @@ const signToken = (id, role, email) => {
   return jwt.sign({ id, role, email }, process.env.JWT_SECRET);
 };
 
-const generateRestToken = () => {
-  const randomBytes = crypto.randomBytes(32).toString("hex");
-  return crypto
-    .createHash('sha256')
-    .update(randomBytes)
-    .digest('hex');
+const sendResWithToken = (user, status, message, res) => {
+  const token = signToken(user._id, user.role, user.email);
+  user.password = undefined;
+  res.status(status).json({
+    success: true,
+    message,
+    token,
+    data: user
+  });
 }
 
 export const register = catchAsyncError(async (req, res, next) => {
@@ -37,13 +40,14 @@ export const register = catchAsyncError(async (req, res, next) => {
 });
 
 export const login = catchAsyncError(async (req, res, next) => {
-  let foundUser = req.foundUser;
+  let foundUser = await User.findOne({ email: req.body.email }).select('+password');
   if (!await foundUser.correctPassword(req.body.password, foundUser.password)) {
     return next(new AppErrors("Incorrect Email or Password", 401));
   }
-  const token = signToken(foundUser._id, foundUser.role, foundUser.email);
-  foundUser.password = undefined;
-  return res.json({ message: "Welcome", data: foundUser, token: token });
+  if (!foundUser.is_verified) {
+    return next(new AppErrors("Your account is not verified", 401));
+  }
+  sendResWithToken(foundUser, 200,"Login successful", res);
 });
 
 
@@ -57,15 +61,11 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
   if (!user) {
     return next(new AppErrors("User not found", 404));
   }
-  const restToken = generateRestToken();
-
-  const url = `${req.protocol}://${req.get('host')}/api/v1/users/reset-password/${restToken}`;
-  user.passwordResetToken = restToken;
-  user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+  const restToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
-
+  const url = `${req.protocol}://${req.get('host')}/api/v1/users/reset-password/${restToken}`;
   try {
-    await sendEmail(user.email, url);
+    await sendEmail(user.email, url, true);
     res.status(200).json({
       success: true,
       message: "Email sent successfully"
@@ -81,20 +81,41 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
 
 export const resetPassword = catchAsyncError(async (req, res, next) => {
   const token = req.params.token;
-  res.send({
-    token
+  if (!token) {
+    return next(new AppErrors("Invalid Token", 400));
+  }  
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() }
   });
+
+  if (!user) {
+    return next(new AppErrors('Token is invalid or has expired', 400));
+  }
+
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  // user.passwordChangedAt => will be update from hook
+
+  await user.save();
+
+  sendResWithToken(user, 200, "Password updated successfully", res);
 });
 
 export const updatePassword = catchAsyncError(async (req, res, next) => {
-  res.send({
-    message: "Password updated successfully"
-  })
+  const user = await User.findById(req.user.id).select('+password');
+  if (!(await user.correctPassword(req.body.currentPassword, user.password))) {
+    return next(new AppErrors("Incorrect Password", 401));
+  }
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  await user.save();
+
+  sendResWithToken(user, 200, "Password updated successfully", res);
 });
-
-
-
-
 
 
 export const verifyAccount = (req, res) => {

@@ -5,7 +5,6 @@ import User from "../Models/user.model.js";
 
 // protect middleware => protect routes that only logged in users can access
 export const protect = catchAsyncError(async (req, res, next) => {
-    console.log("we are in protect middleware");
     let token;
     if (
         req.headers.authorization &&
@@ -20,14 +19,13 @@ export const protect = catchAsyncError(async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(decoded);
     const currentUser = await User.findById(decoded.id);
 
     if (!currentUser) {
         return next(new AppErrors('The user belonging to this token does no longer exist', 401));
     }
 
-    if (currentUser.changedPasswordAfter(decoded.iat)) {
+    if (currentUser.passwordChangedAfter(decoded.iat)) {
         return next(new AppErrors('User recently changed password! Please log in again', 401));
     }
 
