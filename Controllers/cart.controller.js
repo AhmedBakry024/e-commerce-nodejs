@@ -2,7 +2,6 @@ import User from "../Models/user.model.js"
 import jwt from "jsonwebtoken"
 import Product from "../Models/product.model.js"
 
-
 const productExists = async (productname)=>{
         let productdata = await Product.findOne({name : productname})
         if(!productdata){
@@ -91,3 +90,65 @@ export const add_items = async(req,res) =>{
         }
         
 }
+
+
+export const remove_items = async(req , res)=>{
+        let errors_quantity = []
+        let errors_product = []
+        let token = req.headers.token;
+        try {
+                let decoded = jwt.verify(token , process.env.JWT_SECRET)
+                if(decoded.role == "user"){
+                        let user = await User.findById(decoded.id)
+                        if(user.is_active){
+                                let items = Array.isArray(req.body)? req.body : [req.body]
+                                for(let item of items){
+                                       let exists =  user.cart_items.has(item.productname)
+                                       if(exists && item.quantity!== undefined){
+                                        let existingquantity = user.cart_items.get(item.productname)
+                                        if(item.quantity > existingquantity){
+                                                errors_quantity.push(`There are only ${existingquantity} items of ${item.productname} in the cart`)
+                                        }
+                                        else{
+                                                let newquantity = existingquantity - item.quantity
+                                                if(newquantity == 0){
+                                                        user.cart_items.delete(item.productname)
+                                                }
+                                                else
+                                                        user.cart_items.set(item.productname , newquantity )
+                                        }
+                                       }
+                                       else if(exists){
+                                        user.cart_items.delete(item.productname)
+                                       }
+                                       else
+                                        errors_product.push(`${item.productname} not found in cart`)
+                                }
+                                await user.save();
+                                let cartdata = Object.fromEntries(user.cart_items)
+                                if(errors_product.length == 0 && errors_quantity.length == 0 ){
+                                        res.status(200).json({message:"items removed successfully" , data : cartdata})
+                                }
+                                else if(errors_product.length == 0 && errors_quantity.length != 0){
+                                        res.status(200).json({message :" some items couldn't be removed" , error : errors_quantity , data : cartdata})
+                                }
+                                else if(errors_product.length != 0 && errors_quantity.length == 0){
+                                        res.status(400).json({data : errors_product})
+                                }
+                                else{
+                                        res.status(200).json({notfoundproducts : errors_product , quantityerrors :errors_quantity , data : cartdata})
+                                }
+                        }
+                        else{
+                                return res.status(403).json({message :"User account is inactive"})
+                        }
+                }
+                else{
+                        res.status(403).json({message : "You don't have the permission to remove items"})
+                }
+                
+
+        }catch(err){
+                res.status(401).json({message : "Invalid Token"})
+        }
+} 
