@@ -5,14 +5,18 @@ import User from "../Models/user.model.js";
 import catchAsyncError from "../Utils/catchAsyncError.js";
 import AppErrors from "../Utils/appErrors.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 const signToken = (id, role, email) => {
   return jwt.sign({ id, role, email }, process.env.JWT_SECRET);
 };
 
-const sendResWithToken = (user, status, message, res) => {
+const sendResWithToken = (user, status, message,req, res) => {
   const token = signToken(user._id, user.role, user.email);
   user.password = undefined;
+  req.cookie('jwt', token, {
+    httpOnly: true,
+  });
   res.status(status).json({
     success: true,
     message,
@@ -47,12 +51,18 @@ export const login = catchAsyncError(async (req, res, next) => {
   if (!foundUser.is_verified) {
     return next(new AppErrors("Your account is not verified", 401));
   }
-  sendResWithToken(foundUser, 200,"Login successful", res);
+  sendResWithToken(foundUser, 200,"Login successful", req, res);
 });
 
 
 export const logout = catchAsyncError(async (req, res, next) => {
-  res.send("Logout");
+    res.cookie('jwt', 'loggedout', {
+      httpOnly: true
+    })
+    res.status(200).json({
+      success: true,
+      message: "Logout successful"
+    });
 });
 
 
@@ -102,11 +112,12 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 
   await user.save();
 
-  sendResWithToken(user, 200, "Password updated successfully", res);
+  sendResWithToken(user, 200, "Password updated successfully",req, res);
 });
 
 export const updatePassword = catchAsyncError(async (req, res, next) => {
   const user = await User.findById(req.user.id).select('+password');
+  
   if (!(await user.correctPassword(req.body.currentPassword, user.password))) {
     return next(new AppErrors("Incorrect Password", 401));
   }
@@ -114,7 +125,7 @@ export const updatePassword = catchAsyncError(async (req, res, next) => {
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
 
-  sendResWithToken(user, 200, "Password updated successfully", res);
+  sendResWithToken(user, 200, "Password updated successfully",req, res);
 });
 
 
@@ -122,9 +133,9 @@ export const verifyAccount = (req, res) => {
   let verifyEmail = req.params.email;
   jwt.verify(verifyEmail, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
-      return res.status(401).json({ message: "Invalid Token" })
+      return next(new AppErrors("Invalid Token", 400));
     }
     await User.findOneAndUpdate({ email: decoded }, { is_verified: true })
-    res.status(200).json({ message: "Account Verified" })
+    res.send("Account Verified");
   })
 }
