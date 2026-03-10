@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import validator from "validator";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+// import required from "joi";
 
 const addressSchema = new mongoose.Schema({
     city: {
@@ -47,7 +49,7 @@ const userSchema = new mongoose.Schema({
             },
             message: 'Please enter a valid phone number'
         },
-        
+
     },
     password: {
         type: String,
@@ -55,20 +57,34 @@ const userSchema = new mongoose.Schema({
         minlength: 8,
         select: false
     },
+    // passwordConfirm: {
+    //     type: String,
+    //     required: [true, 'Please confirm your password'],
+    //     validate: {
+    //         // This only works on CREATE and SAVE!!!
+    //         validator: function (el) {
+    //             return el === this.password;
+    //         },
+    //         message: 'Passwords are not the same!'
+    //     }
+    // },
     passwordConfirm: {
-        type: String,
-        required: [true, 'Please confirm your password'],
-        validate: {
-            // This only works on CREATE and SAVE!!!
-            validator: function (el) {
-                return el === this.password;
-            },
-            message: 'Passwords are not the same!'
-        }
+    type: String,
+    required: function() {
+        // Only required when creating a new user
+        return this.isNew;
     },
+    validate: {
+        validator: function (el) {
+            // Only validate when creating a new user
+            return this.isNew ? el === this.password : true;
+        },
+        message: 'Passwords are not the same!'
+    }
+},
     is_active: {
         type: Boolean,
-        default: true 
+        default: true
     },
 
     is_verified: {
@@ -78,7 +94,27 @@ const userSchema = new mongoose.Schema({
     address: [addressSchema],
 
     // paymentDetails: [paymentDetailSchema],
-    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],    
+    
+    cart_items :[
+        {
+            product :{
+                type: mongoose.Schema.Types.ObjectId , 
+                ref: 'Product',
+                required : true
+            },
+            quantity :{
+                type: Number,
+                default:1
+            }
+
+        }
+
+    ],
+    
+    passwordChangedAt: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
 
 }, {
     timestamps: true,
@@ -91,13 +127,40 @@ userSchema.pre('save', async function () {
     this.passwordConfirm = undefined;
 });
 
+userSchema.pre("save", async function () {
+    if (!this.isModified("password") || this.isNew) return;
+    this.passwordChangedAt = Date.now() - 1000;
+})
 
-userSchema.methods.correctPassword = async function(
-  candidatePassword,
-  userPassword
+userSchema.methods.correctPassword = async function (
+    candidatePassword,
+    userPassword
 ) {
-  return await bcrypt.compare(candidatePassword, userPassword);
+    return await bcrypt.compare(candidatePassword, userPassword);
 };
+
+userSchema.methods.passwordChangedAfter = function (jwt_iat) {
+    if (this.passwordChangedAt) {
+        const changedPasswordTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+        return jwt_iat < changedPasswordTimestamp;
+    }
+    return false;
+};
+
+
+userSchema.methods.createPasswordResetToken = function () {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    this.passwordResetToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+
+    this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+    return resetToken;
+};
+
 
 
 const User = mongoose.model("User", userSchema);
