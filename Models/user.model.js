@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import validator from "validator";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { required } from "joi";
+// import required from "joi";
 
 const addressSchema = new mongoose.Schema({
     city: {
@@ -57,17 +57,31 @@ const userSchema = new mongoose.Schema({
         minlength: 8,
         select: false
     },
+    // passwordConfirm: {
+    //     type: String,
+    //     required: [true, 'Please confirm your password'],
+    //     validate: {
+    //         // This only works on CREATE and SAVE!!!
+    //         validator: function (el) {
+    //             return el === this.password;
+    //         },
+    //         message: 'Passwords are not the same!'
+    //     }
+    // },
     passwordConfirm: {
-        type: String,
-        required: [true, 'Please confirm your password'],
-        validate: {
-            // This only works on CREATE and SAVE!!!
-            validator: function (el) {
-                return el === this.password;
-            },
-            message: 'Passwords are not the same!'
-        }
+    type: String,
+    required: function() {
+        // Only required when creating a new user
+        return this.isNew;
     },
+    validate: {
+        validator: function (el) {
+            // Only validate when creating a new user
+            return this.isNew ? el === this.password : true;
+        },
+        message: 'Passwords are not the same!'
+    }
+},
     is_active: {
         type: Boolean,
         default: true
@@ -87,7 +101,7 @@ const userSchema = new mongoose.Schema({
             product :{
                 type: mongoose.Schema.Types.ObjectId , 
                 ref: 'Product',
-                required : True
+                required : true
             },
             quantity :{
                 type: Number,

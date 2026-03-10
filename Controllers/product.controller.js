@@ -1,4 +1,4 @@
-import { Product } from "../Models/product.model.js";
+import Product from "../Models/product.model.js";
 
 
 // Add Product
