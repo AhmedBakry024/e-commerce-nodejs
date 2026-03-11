@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import Product from "../Models/product.model.js"
 import catchAsyncError from "../Utils/catchAsyncError.js"
 import AppErrors from "../Utils/appErrors.js"
+import { populate } from "dotenv"
 
 const productExists = async (productId)=>{
         let productdata = await Product.findById(productId);
@@ -120,8 +121,7 @@ export const remove_items = async(req , res)=>{
                                         }
                                        }
                                        else
-                                        user.cart_items.splice(index , 1)
-                                        
+                                        user.cart_items.splice(index , 1)    
                                 }
                                 await user.save();
                                 if(errors_product.length == 0 && errors_quantity.length == 0 ){
@@ -145,6 +145,11 @@ export const remove_items = async(req , res)=>{
                         res.status(403).json({message : "You don't have the permission to remove items"})
                 }
 }
+export const viewCart = async(req , res) =>{
+        let decoded = req.user
+        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0} )
+        res.status(200).json({your_cart : user})
+} 
 
 export const checkout = async(req ,res)=>{
         let decoded = req.user
@@ -172,15 +177,8 @@ export const checkout = async(req ,res)=>{
                                 product : item.product.name,
                                 totalprice : item.product.price * item.quantity
                         })
-                
         }
         user.cart_items = []
         await user.save()
         return res.status(200).json({message : "Order placed successfully", order : {products : order , total_amount : total , PaymentMethod : req.body.paymentmethod}})
-
 }
-
-
-
-
-
