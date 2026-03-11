@@ -147,8 +147,17 @@ export const remove_items = async(req , res)=>{
 }
 export const viewCart = async(req , res) =>{
         let decoded = req.user
-        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0} )
-        res.status(200).json({your_cart : user})
+        if(decoded.role != "user"){
+                return res.status(403).json({message : "You don't have cart"})
+        }
+        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", "is_active" ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0})
+        if(!user.is_active){
+                return res.status(403).json({message :"User account is inactive"})
+        }
+        if(user.cart_items.length === 0 ){
+                return res.status(200).json({message : "Your cart is empty!"})
+        }
+        res.status(200).json(user.cart_items)
 } 
 
 export const checkout = async(req ,res)=>{
@@ -160,7 +169,7 @@ export const checkout = async(req ,res)=>{
                 return res.status(403).json({message :"User account is inactive"})
         }
         if(user.cart_items.length === 0 ){
-                return res.status(400).json({message : "Your cart is empty!"})
+                return res.status(200).json({message : "Your cart is empty!"})
         }
         if(!req.body.paymentmethod){
                 return res.status(400).json({message : "You must specify payment method"})
