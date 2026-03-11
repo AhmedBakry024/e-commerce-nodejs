@@ -146,6 +146,40 @@ export const remove_items = async(req , res)=>{
                 }
 }
 
+export const checkout = async(req ,res)=>{
+        let decoded = req.user
+        let total = 0
+        let order = []
+        let user = await User.findById(decoded.id).populate("cart_items.product")
+        if(!user.is_active){
+                return res.status(403).json({message :"User account is inactive"})
+        }
+        if(user.cart_items.length === 0 ){
+                return res.status(400).json({message : "Your cart is empty!"})
+        }
+        if(!req.body.paymentmethod){
+                return res.status(400).json({message : "You must specify payment method"})
+        }
+        for(let item of user.cart_items){
+                let valid = await stockCheck(item.product._id , item.quantity)
+                if(typeof valid === "string"){
+                        return res.status(400).json({message : "Can't proceed to checkout due to missing products in the stock"})
+                }
+                        total += item.product.price * item.quantity
+                        item.product.stock -= item.quantity
+                        await item.product.save()
+                        order.push({
+                                product : item.product.name,
+                                totalprice : item.product.price * item.quantity
+                        })
+                
+        }
+        user.cart_items = []
+        await user.save()
+        return res.status(200).json({message : "Order placed successfully", order : {products : order , total_amount : total , PaymentMethod : req.body.paymentmethod}})
+
+}
+
 
 
 
