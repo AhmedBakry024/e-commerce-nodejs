@@ -30,7 +30,7 @@ const stockCheck = async (productId, productquantity) =>{
         
 }
 
-export const add_items = async(req,res) =>{
+export const add_items =catchAsyncError(async(req,res) =>{
         let errors_quantity = []
         let errors_product = []
                 let decoded = req.user
@@ -89,10 +89,10 @@ export const add_items = async(req,res) =>{
         else{
                 return res.status(403).json({message : "You don't have permission to add items in cart"})
         }           
-}
+})
 
 
-export const remove_items = async(req , res)=>{
+export const remove_items = catchAsyncError (async(req , res)=>{
         let errors_quantity = []
         let errors_product = []
                 let decoded = req.user
@@ -144,8 +144,9 @@ export const remove_items = async(req , res)=>{
                 else{
                         res.status(403).json({message : "You don't have the permission to remove items"})
                 }
-}
-export const viewCart = async(req , res) =>{
+})
+
+export const viewCart = catchAsyncError (async(req , res) =>{
         let decoded = req.user
         if(decoded.role != "user"){
                 return res.status(403).json({message : "You don't have cart"})
@@ -158,9 +159,26 @@ export const viewCart = async(req , res) =>{
                 return res.status(200).json({message : "Your cart is empty!"})
         }
         res.status(200).json(user.cart_items)
-} 
+} )
 
-export const checkout = async(req ,res)=>{
+export const clearCart = catchAsyncError (async(req ,res) =>{
+        let decoded = req.user
+        if(decoded.role != "user"){
+                return res.status(403).json({message : "You don't have cart"})
+        }
+        let user = await User.findById(decoded.id)
+        if(!user.is_active){
+                return res.status(403).json({message :"User account is inactive"})
+        }
+        if(user.cart_items.length === 0 ){
+                return res.status(200).json({message : "Your cart is empty already!"})
+        }
+        user.cart_items = []
+        await user.save()
+        res.status(200).json({message : "Cart cleared successfully" , data : user.cart_items})
+})
+
+export const checkout = catchAsyncError (async(req ,res)=>{
         let decoded = req.user
         let total = 0
         let order = []
@@ -190,4 +208,4 @@ export const checkout = async(req ,res)=>{
         user.cart_items = []
         await user.save()
         return res.status(200).json({message : "Order placed successfully", order : {products : order , total_amount : total , PaymentMethod : req.body.paymentmethod}})
-}
+})
