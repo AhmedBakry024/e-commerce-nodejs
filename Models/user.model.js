@@ -57,31 +57,6 @@ const userSchema = new mongoose.Schema({
         minlength: 8,
         select: false
     },
-    // passwordConfirm: {
-    //     type: String,
-    //     required: [true, 'Please confirm your password'],
-    //     validate: {
-    //         // This only works on CREATE and SAVE!!!
-    //         validator: function (el) {
-    //             return el === this.password;
-    //         },
-    //         message: 'Passwords are not the same!'
-    //     }
-    // },
-    passwordConfirm: {
-    type: String,
-    required: function() {
-        // Only required when creating a new user
-        return this.isNew;
-    },
-    validate: {
-        validator: function (el) {
-            // Only validate when creating a new user
-            return this.isNew ? el === this.password : true;
-        },
-        message: 'Passwords are not the same!'
-    }
-},
     is_active: {
         type: Boolean,
         default: true
@@ -124,7 +99,6 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function () {
     if (!this.isModified('password')) return;
     this.password = await bcrypt.hash(this.password, 12);
-    this.passwordConfirm = undefined;
 });
 
 userSchema.pre("save", async function () {
@@ -157,11 +131,8 @@ userSchema.methods.createPasswordResetToken = function () {
         .digest('hex');
 
     this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-
     return resetToken;
 };
-
-
 
 const User = mongoose.model("User", userSchema);
 export default User;

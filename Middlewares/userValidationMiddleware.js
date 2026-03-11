@@ -1,10 +1,10 @@
-import { registerValidationSchema, loginValidationSchema } from "../Utils/Validations/userValidaion.js";
-
+import { registerValidationSchema, loginValidationSchema, updatePasswordValidationSchema, resetPasswordValidationSchema } from "../Utils/Validations/userValidaion.js";
+import AppErrors from "../Utils/appErrors.js";
 export const registerValidation = (req, res, next) => {
 
     const { error } = registerValidationSchema.validate(req.body, { abortEarly: false });
     if (error) {
-        return res.status(400).json({ message: error.details[0].message});
+        return next(new AppErrors(error.details[0].message, 400));
     }
     next();
 };
@@ -12,7 +12,23 @@ export const registerValidation = (req, res, next) => {
 export const loginValidation = (req, res, next) => {
     const { error } = loginValidationSchema.validate(req.body, { abortEarly: false });
     if (error) {
-        return res.status(400).json({ message: error.details[0].message});
+        return next(new AppErrors(error.details[0].message, 400));
+    }
+    next();
+};
+
+export const updatePasswordValidation = (req, res, next) => {
+    const { error } = updatePasswordValidationSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next(new AppErrors(error.details[0].message, 400));
+    }
+    next();
+};
+
+export const resetPasswordValidation = (req, res, next) => {
+    const { error } = resetPasswordValidationSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next(new AppErrors(error.details[0].message, 400));
     }
     next();
 };

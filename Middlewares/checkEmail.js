@@ -13,7 +13,7 @@ const checkEmail = async (req,res,next) =>{
             req.foundUser = foundUser;
             next();
         }else{
-            return res.status(422).json({message: "Invalid Password or Email"})
+            return res.status(422).json({message: "User with this email does not exist"})
         }
     }else{
         res.status(404).json({message: "Not Found"})

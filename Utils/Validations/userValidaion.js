@@ -58,3 +58,14 @@ export const loginValidationSchema = Joi.object({
     email: fields.email,
     password: fields.password,
 });
+
+export const resetPasswordValidationSchema = Joi.object({
+    password: fields.password,
+    passwordConfirm: fields.passwordConfirm,
+});
+
+export const updatePasswordValidationSchema = Joi.object({
+    currentPassword: fields.password,
+    password: fields.password,
+    passwordConfirm: fields.passwordConfirm,
+});

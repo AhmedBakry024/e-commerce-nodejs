@@ -1,22 +1,23 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 import { sendEmail } from "../Utils/Email/sendEmail.js";
 import User from "../Models/user.model.js";
 import catchAsyncError from "../Utils/catchAsyncError.js";
 import AppErrors from "../Utils/appErrors.js";
-import crypto from "crypto";
-import jwt from "jsonwebtoken";
 
 const signToken = (id, role, email) => {
   return jwt.sign({ id, role, email }, process.env.JWT_SECRET);
 };
 
-const sendResWithToken = (user, status, message,req, res) => {
+const sendResWithToken = (user, status, message, res) => {
   const token = signToken(user._id, user.role, user.email);
   user.password = undefined;
-  req.cookie('jwt', token, {
+
+  res.cookie('jwt', token, {
     httpOnly: true,
   });
+  
   res.status(status).json({
     success: true,
     message,
@@ -30,13 +31,12 @@ export const register = catchAsyncError(async (req, res, next) => {
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
     phone: req.body.phone
   });
   newUser.password = undefined;
   const url = `${req.protocol}://${req.get('host')}/api/v1/users/verify`;
-  await sendEmail(newUser.email, url);
-  res.status(201).json({
+  // await sendEmail(newUser.email, url);
+  res.status(201).json({  
     success: true,
     message: "User created successfully",
     data: newUser
@@ -51,12 +51,12 @@ export const login = catchAsyncError(async (req, res, next) => {
   if (!foundUser.is_verified) {
     return next(new AppErrors("Your account is not verified", 401));
   }
-  sendResWithToken(foundUser, 200,"Login successful", req, res);
+  sendResWithToken(foundUser, 200,"Login successful", res);
 });
 
 
 export const logout = catchAsyncError(async (req, res, next) => {
-    res.cookie('jwt', 'loggedout', {
+    res.clearCookie('jwt',{
       httpOnly: true
     })
     res.status(200).json({
@@ -64,7 +64,6 @@ export const logout = catchAsyncError(async (req, res, next) => {
       message: "Logout successful"
     });
 });
-
 
 export const forgotPassword = catchAsyncError(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
@@ -105,14 +104,12 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
   }
 
   user.password = req.body.password;
-  user.passwordConfirm = req.body.passwordConfirm;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
-  // user.passwordChangedAt => will be update from hook
 
   await user.save();
 
-  sendResWithToken(user, 200, "Password updated successfully",req, res);
+  sendResWithToken(user, 200, "Password updated successfully", res);
 });
 
 export const updatePassword = catchAsyncError(async (req, res, next) => {
@@ -122,10 +119,9 @@ export const updatePassword = catchAsyncError(async (req, res, next) => {
     return next(new AppErrors("Incorrect Password", 401));
   }
   user.password = req.body.password;
-  user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
 
-  sendResWithToken(user, 200, "Password updated successfully",req, res);
+  sendResWithToken(user, 200, "Password updated successfully", res);
 });
 
 
