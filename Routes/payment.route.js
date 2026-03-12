@@ -1,13 +1,13 @@
 import express from "express";
 
-import {createPaymentIntent, getTestCards} from "../Controllers/payment.controller.js";
+import {checkout, getTestCards} from "../Controllers/payment.controller.js";
 
 import { protect } from "../Middlewares/protect.js";
 
 const router = express.Router();
-// router.use(protect);
+router.use(protect);
 
-router.post("/pay", createPaymentIntent);
+router.post("/pay", checkout);
 router.get("/get-cards", getTestCards);
 
 
