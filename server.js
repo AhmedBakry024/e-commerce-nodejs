@@ -17,6 +17,7 @@ import userRouter from "./Routes/user.route.js";
 import CartRoutes from "./Routes/cart.route.js";
 import AppErrors from "./Utils/appErrors.js";
 import globalErrorHandler from "./Controllers/globalError.controller.js";
+import paymentRoutes from "./Routes/payment.route.js"
 await dbConnect(); 
 
 const app = express();
@@ -27,6 +28,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/categories", categoryRoute);
 app.use("/products", productRoute);
+app.use("/payment", paymentRoutes);
 
 
 const PORT = process.env.PORT || 3000;
