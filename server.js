@@ -18,6 +18,7 @@ import CartRoutes from "./Routes/cart.route.js";
 import AppErrors from "./Utils/appErrors.js";
 import globalErrorHandler from "./Controllers/globalError.controller.js";
 import paymentRoutes from "./Routes/payment.route.js"
+import orderRouter from "./Routes/order.route.js"
 await dbConnect(); 
 
 const app = express();
@@ -30,12 +31,12 @@ app.use("/categories", categoryRoute);
 app.use("/products", productRoute);
 app.use("/payment", paymentRoutes);
 
-
 const PORT = process.env.PORT || 3000;
 
 
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/cart",CartRoutes)
+app.use("/api/v1/cart", CartRoutes)
+app.use("/api/v1/orders", orderRouter);
 
 app.use((req, res, next) => {
   next(new AppErrors(`Can't find ${req.originalUrl} on this server!`, 404));
