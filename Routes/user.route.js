@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import * as authController from "../Controllers/auth.controller.js";
 import checkEmail from "../Middlewares/checkEmail.js";
 import { registerValidation, loginValidation, updatePasswordValidation, resetPasswordValidation } from "../Middlewares/userValidationMiddleware.js";
@@ -16,5 +15,6 @@ router.post("/reset-password/:token",resetPasswordValidation, authController.res
 router.use(protect);
 router.post("/logout", authController.logout);
 router.post("/update-password",updatePasswordValidation, authController.updatePassword);
+router.put("/update-profile", authController.editProfile);
 
 export default router; 
