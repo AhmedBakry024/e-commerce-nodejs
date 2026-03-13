@@ -51,6 +51,9 @@ export const login = catchAsyncError(async (req, res, next) => {
   if (!foundUser.is_verified) {
     return next(new AppErrors("Your account is not verified", 401));
   }
+  if (!foundUser.is_active) {
+    return next(new AppErrors("Your account is banned, Contact Admin for assistance", 403));
+  }
   sendResWithToken(foundUser, 200,"Login successful", res);
 });
 
@@ -135,3 +138,19 @@ export const verifyAccount = (req, res) => {
     res.send("Account Verified");
   })
 }
+
+export const editProfile = catchAsyncError(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return next(new AppErrors("User not found", 404));
+  }
+  const { name, phone } = req.body;
+  if (name) user.name = name;
+  if (phone) user.phone = phone;
+  await user.save();
+  res.status(200).json({
+    success: true,
+    message: "Profile updated successfully",
+    data: user
+  });
+});
