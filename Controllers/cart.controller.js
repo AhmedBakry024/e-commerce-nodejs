@@ -30,7 +30,7 @@ const stockCheck = async (productId, productquantity) =>{
         
 }
 
-export const add_items =catchAsyncError(async(req,res) =>{
+export const add_items = catchAsyncError(async(req,res) =>{
         let errors_quantity = []
         let errors_product = []
                 let decoded = req.user
@@ -91,8 +91,40 @@ export const add_items =catchAsyncError(async(req,res) =>{
         }           
 })
 
+export const delete_item = catchAsyncError (async(req , res)=>{
+        let errors_product = []
+                let decoded = req.user
+                let target_id = req.params.id
+                if(decoded.role == "user"){
+                        let user = await User.findById(decoded.id)
+                        if(user.is_active){
+                                       let index =  user.cart_items.findIndex(element => element.product.toString() === target_id)
+                                       if(index === -1){
+                                        errors_product.push(`${target_id} not found in cart`)
+                                       }
+                                       else{
+                                        user.cart_items.splice(index , 1)
+                                       }
+                                        
+                                await user.save();
+                                if(errors_product.length == 0){
+                                        res.status(200).json({message:"item removed successfully" , data : user.cart_items})
+                                }
+                                else{
+                                        res.status(400).json({data : errors_product ,  cart : user.cart_items})
+                                }
+                        }
+                        else{
+                                return res.status(403).json({message :"User account is inactive"})
+                        }
+                }
+                else{
+                        res.status(403).json({message : "You don't have the permission to delete item from cart"})
+                }
+})
 
-export const remove_items = catchAsyncError (async(req , res)=>{
+
+export const update_quantity = catchAsyncError (async(req , res)=>{
         let errors_quantity = []
         let errors_product = []
                 let decoded = req.user
@@ -107,28 +139,26 @@ export const remove_items = catchAsyncError (async(req , res)=>{
                                        }
                                        let cartItem = user.cart_items[index]
                                        if(item.quantity!== undefined){
-                                        let existingquantity = cartItem.quantity
-                                        if(item.quantity > existingquantity){
-                                                errors_quantity.push(`There are only ${existingquantity} items of ${item.productId} in the cart`)
+                                        let productstock = await stockCheck(item.productId , item.quantity)
+                                        if(typeof productstock === "string"){
+                                                errors_quantity.push(productstock)
+                                        }
+                                        else if (item.quantity == 0){
+                                                        user.cart_items.splice(index , 1)
                                         }
                                         else{
-                                                let newquantity = existingquantity - item.quantity
-                                                if(newquantity == 0){
-                                                        user.cart_items.splice(index , 1)
-                                                }
-                                                else
-                                                        cartItem.quantity = newquantity
+                                                cartItem.quantity = item.quantity
                                         }
                                        }
                                        else
-                                        user.cart_items.splice(index , 1)    
+                                         return res.status(400).json({message :" please provide quantity"})
                                 }
                                 await user.save();
                                 if(errors_product.length == 0 && errors_quantity.length == 0 ){
-                                        res.status(200).json({message:"items removed successfully" , data : user.cart_items})
+                                        res.status(200).json({message:"quantities updated successfully" , data : user.cart_items})
                                 }
                                 else if(errors_product.length == 0 && errors_quantity.length != 0){
-                                        res.status(200).json({message :" some items couldn't be removed" , error : errors_quantity , data : user.cart_items})
+                                        res.status(200).json({message :" some quantities couldn't be updated" , error : errors_quantity , data : user.cart_items})
                                 }
                                 else if(errors_product.length != 0 && errors_quantity.length == 0){
                                         res.status(400).json({data : errors_product})
@@ -151,7 +181,7 @@ export const viewCart = catchAsyncError (async(req , res) =>{
         if(decoded.role != "user"){
                 return res.status(403).json({message : "You don't have cart"})
         }
-        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", "is_active" ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0})
+        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", "is_active" ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0 ,stock:1 , image : 1})
         if(!user.is_active){
                 return res.status(403).json({message :"User account is inactive"})
         }
