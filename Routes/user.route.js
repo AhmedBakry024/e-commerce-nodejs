@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import * as authController from "../Controllers/auth.controller.js";
 import checkEmail from "../Middlewares/checkEmail.js";
 import { registerValidation, loginValidation, updatePasswordValidation, resetPasswordValidation, updateProfileValidation } from "../Middlewares/userValidationMiddleware.js";

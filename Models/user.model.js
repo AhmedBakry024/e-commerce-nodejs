@@ -41,7 +41,9 @@ const userSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
+        sparse: true,
         unique: true,
+        set: v => v === null || v === "" ? undefined : v,
         validate: {
             validator: function (v) {
                 return validator.isMobilePhone(v, 'ar-EG');

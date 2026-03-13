@@ -9,6 +9,7 @@ import { dbConnect } from "./Database/dbConnect.js";
 
 import productRoute from "./Routes/product.route.js";
 import categoryRoute from "./Routes/category.route.js";
+import adminRoute from "./Routes/admin.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,7 +31,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/categories", categoryRoute);
 app.use("/products", productRoute);
 app.use("/payment", paymentRoutes);
-
+app.use("/admin", adminRoute);
 const PORT = process.env.PORT || 3000;
 
 
