@@ -138,19 +138,3 @@ export const verifyAccount = (req, res) => {
     res.send("Account Verified");
   })
 }
-
-export const editProfile = catchAsyncError(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return next(new AppErrors("User not found", 404));
-  }
-  const { name, phone } = req.body;
-  if (name) user.name = name;
-  if (phone) user.phone = phone;
-  await user.save();
-  res.status(200).json({
-    success: true,
-    message: "Profile updated successfully",
-    data: user
-  });
-});

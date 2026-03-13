@@ -46,11 +46,6 @@ const fields = {
         }),
 };
 
-const addressValidation = Joi.object({
-    city: Joi.string().required().messages({ "any.required": "Please type your city!" }),
-    street: Joi.string().required().messages({ "any.required": "Please type your street!" }),
-    building_number: Joi.number().integer().required().messages({ "any.required": "Please type your building number!" })
-});
 
 export const registerValidationSchema = Joi.object({
     name: fields.name,
@@ -58,7 +53,6 @@ export const registerValidationSchema = Joi.object({
     password: fields.password,
     passwordConfirm: fields.passwordConfirm,
     phone: fields.phone,
-    address: addressValidation
 });
 
 export const loginValidationSchema = Joi.object({
@@ -80,5 +74,22 @@ export const updatePasswordValidationSchema = Joi.object({
 export const updateProfileValidationSchema = Joi.object({
     name: fields.name.optional(),
     phone: fields.phone.optional(),
-    address: addressValidation
+    address: Joi.object({
+        city: Joi.string().required().messages({
+            "string.base": "City must be a string",
+            "string.empty": "City is required",
+            "any.required": "City is required",
+        }),
+        street: Joi.string().required().messages({
+            "string.base": "Street must be a string",
+            "string.empty": "Street is required",
+            "any.required": "Street is required",
+        }),
+        building_number: Joi.number().positive().required().messages({
+            "number.base": "Building number must be a number",
+            "number.empty": "Building number is required",
+            "number.positive": "Building number must be a positive number",
+            "any.required": "Building number is required",
+        }),
+    })
 });

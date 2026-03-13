@@ -21,6 +21,9 @@ export const updateProfile = catchAsyncError(async (req, res, next) => {
   if (!user) {
     return next(new AppErrors("User not found", 404));
   }
+  if(user.role !== "user") {
+    return next(new AppErrors("This action is allowed only for users", 403));
+  }
   if (req.body.email) {
     return next(new AppErrors("You cannot update email right now", 403));
   }

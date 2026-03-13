@@ -67,8 +67,10 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    address: addressSchema,
-
+    address: {
+        type: addressSchema,
+        defult: undefined
+    },
     // paymentDetails: [paymentDetailSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],    
     
