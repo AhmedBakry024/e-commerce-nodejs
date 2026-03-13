@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import User from '../Models/user.model.js';
 import Product from '../Models/product.model.js';
+import { createOrder } from './order.controller.js';
 
 const getStripe= () => new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -81,6 +82,8 @@ export const checkout = async (req, res) => {
     return res.status(400).json({ error: 'Cart is empty' });
   }
 
+  let orderItems = [];
+
   for (const item of cartItems) {
     const product = item.product instanceof Product ? item.product : await Product.findById(item.product);
     if (!product) {
@@ -112,7 +115,25 @@ export const checkout = async (req, res) => {
       const product = item.product instanceof Product ? item.product : await Product.findById(item.product);
       product.stock -= item.quantity;
       await product.save();
+
+      orderItems.push({
+        product_id: product._id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        description: product.description,
+        quantity: item.quantity
+      });
+
     }
+
+    await createOrder({
+        userId: user._id,
+        orderItems,
+        payment_method: paymentIntent.payment_method_types[0],
+        payment_status: paymentIntent.status,
+        currency
+    });
 
     user.cart_items = [];
     await user.save();
