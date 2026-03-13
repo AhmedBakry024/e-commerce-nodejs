@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import validator from "validator";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-// import required from "joi";
 
 const addressSchema = new mongoose.Schema({
     city: {
@@ -66,7 +65,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    address: [addressSchema],
+    address: addressSchema,
 
     // paymentDetails: [paymentDetailSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],    

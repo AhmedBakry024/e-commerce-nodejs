@@ -1,4 +1,10 @@
-import { registerValidationSchema, loginValidationSchema, updatePasswordValidationSchema, resetPasswordValidationSchema } from "../Utils/Validations/userValidaion.js";
+import {
+    registerValidationSchema,
+    loginValidationSchema,
+    updatePasswordValidationSchema, 
+    resetPasswordValidationSchema,
+    updateProfileValidationSchema
+} from "../Utils/Validations/userValidaion.js";
 import AppErrors from "../Utils/appErrors.js";
 export const registerValidation = (req, res, next) => {
 
@@ -32,3 +38,12 @@ export const resetPasswordValidation = (req, res, next) => {
     }
     next();
 };
+
+export const updateProfileValidation = (req, res, next) => {
+    const { error } = updateProfileValidationSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next(new AppErrors(error.details[0].message, 400));
+    }
+    next();
+};
+
