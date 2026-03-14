@@ -39,3 +39,10 @@ export const isAdmin = (req, res, next) => {
     }
     next();
 };
+
+export const isUser = (req, res, next) => {
+    if (req.user.role !== 'user') {
+        return res.status(403).json({ error: 'This action is allowed only for users' });
+    }
+    next();
+};
