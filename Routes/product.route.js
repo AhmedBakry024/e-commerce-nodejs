@@ -19,7 +19,7 @@ import { protect } from "../Middlewares/protect.js";
 import { chekcReviewExistAndOwnership } from "../Middlewares/reviewMiddleware.js";
 const router = express.Router();
 
-//router.use(protect);
+router.use(protect);
 
 router.post("/", addProduct);
 router.get("/", getProducts);
