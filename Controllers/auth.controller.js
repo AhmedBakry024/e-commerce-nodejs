@@ -35,7 +35,7 @@ export const register = catchAsyncError(async (req, res, next) => {
   });
   newUser.password = undefined;
   const url = `${req.protocol}://${req.get('host')}/api/v1/users/verify`;
-  // await sendEmail(newUser.email, url);
+  await sendEmail(newUser.email, url);
   res.status(201).json({  
     success: true,
     message: "User created successfully",

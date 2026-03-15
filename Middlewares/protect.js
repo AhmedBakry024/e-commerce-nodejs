@@ -10,7 +10,8 @@ export const protect = catchAsyncError(async (req, res, next) => {
         req.headers.authorization &&
         req.headers.authorization.startsWith('Bearer')
     ) {
-        token = req.headers.authorization.split(' ')[1];
+        const BearerToken = req.headers.authorization.split(' ')[1];
+        token = BearerToken.startsWith("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9") ? BearerToken : null;
     } else if (req.cookies.jwt_token) {
         token = req.cookies.jwt_token;
     }
