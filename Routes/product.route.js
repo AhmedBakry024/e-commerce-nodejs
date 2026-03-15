@@ -15,17 +15,17 @@ import {
     updateReview
 } from "../Controllers/review.controller.js";
 
-import { protect } from "../Middlewares/protect.js";
+import { protect, isAdmin } from "../Middlewares/protect.js";
 import { chekcReviewExistAndOwnership } from "../Middlewares/reviewMiddleware.js";
 const router = express.Router();
 
 router.use(protect);
 
-router.post("/", addProduct);
+router.post("/", isAdmin, addProduct);
 router.get("/", getProducts);
 router.get("/:id", getProduct);
-router.put("/:id", updateProduct);
-router.delete("/:id", deleteProduct);
+router.put("/:id", isAdmin, updateProduct);
+router.delete("/:id", isAdmin, deleteProduct);
 
 router.route("/:product_id/reviews")
         .post(createReview)    
