@@ -13,7 +13,9 @@ const productSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        trim: true // Remove leading and trailing whitespaces
+        trim: true, // Remove leading and trailing whitespaces
+        unique : true,
+        lowercase: true
     },
     description: {
         type: String,
@@ -34,4 +36,5 @@ const productSchema = new mongoose.Schema({
     versionKey: false
  });
 
-export const Product = mongoose.model("Product", productSchema);
+const Product = mongoose.model("Product", productSchema);
+export default Product

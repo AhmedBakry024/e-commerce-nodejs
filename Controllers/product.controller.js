@@ -1,4 +1,4 @@
-import { Product } from "../Models/product.model.js";
+import Product from "../Models/product.model.js";
 
 
 // Add Product
@@ -15,8 +15,38 @@ export const addProduct = async (req, res) => {
 // Get All Products
 export const getProducts = async (req, res) => {
     try {
-        const products = await Product.find().populate("cat_id");
+
+        const { search, category, minPrice, maxPrice } = req.query;
+
+        let filter = {};
+
+        // Search by product name
+        if (search) {
+            filter.name = { $regex: search, $options: "i" };
+        }
+
+        // Filter by category
+        if (category) {
+            filter.cat_id = category;
+        }
+
+        // Filter by price range
+        if (minPrice || maxPrice) {
+            filter.price = {};
+            
+            if (minPrice) {
+                filter.price.$gte = minPrice;
+            }
+
+            if (maxPrice) {
+                filter.price.$lte = maxPrice;
+            }
+        }
+
+        const products = await Product.find(filter).populate("cat_id");
+
         res.json(products);
+
     } catch (error) {
         res.json({ message: "Error", error });
     }
