@@ -174,6 +174,18 @@ export const checkout = async (req, res ,next) => {
     user.cart_items = [];
     await user.save();
 
+   let allproducts  = [] 
+
+    for(item of orderItems){
+
+      allproducts.push({
+        productName : item.name,
+        totalprice : item.quantity * item.price
+      })
+
+    }
+
+
     res.status(200).json({
         success: true,
         message: wayToPay === "card" ? "Payment successful" : "Order placed. Pay on delivery",
@@ -181,7 +193,8 @@ export const checkout = async (req, res ,next) => {
         amount,
         currency,
         status: paymentStatus,
-        
+        allproducts,
+        total_amount : order.total_price
         // orderId: order._id
     });
 
