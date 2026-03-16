@@ -93,3 +93,21 @@ export const updateProfileValidationSchema = Joi.object({
         }),
     })
 });
+
+export const cartValidationSchema = Joi.object({
+    cart_info: Joi.array().items(
+        Joi.object({
+            productId:  Joi.string().required().messages({
+                "string.base": "Product ID must be a string",
+                "string.empty": "Product ID is required",
+                "any.required": "Product ID is required",
+            }),
+            
+            quantity: Joi.number().positive().messages({
+                "number.base": "Quantity must be a number",
+                "number.positive": "Quantity must be a positive number"
+            })
+        })
+    )
+
+});

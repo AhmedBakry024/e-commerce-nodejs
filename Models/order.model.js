@@ -51,6 +51,11 @@ const orderSchema = new mongoose.Schema({
     payment_status: {
         type: String,
         required: true
+    },
+    voucher: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Voucher",
+        default: null
     }
 }, {
     timestamps: true,

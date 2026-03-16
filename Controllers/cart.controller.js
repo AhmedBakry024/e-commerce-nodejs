@@ -8,8 +8,7 @@ import { populate } from "dotenv"
 const productExists = async (productId)=>{
         let productdata = await Product.findById(productId);
         if(!productdata){
-        //        throw new AppErrors(`Product with ID ${productId} not found`, 404);
-                  return `${productId} not found`;
+                 throw new Error(new AppErrors(`Product with ID ${productId} not found`, 404));
         }
         else
                 return productdata
@@ -17,225 +16,198 @@ const productExists = async (productId)=>{
 
 const stockCheck = async (productId, productquantity) =>{
         let productinfo = await productExists(productId)
-        if(typeof productinfo !== "string"){
-                let stockAvailability = productinfo.stock
-                if(stockAvailability >= productquantity)
-                return productinfo
-        else{
-                return `Only ${stockAvailability} items in the stock from ${productinfo.name}`
-        }
-        }
+        if(productinfo.stock < productquantity)
+                 throw new Error(new AppErrors(`Only ${productinfo.stock} items in the stock from ${productinfo.name}`, 401));
         else
                 return productinfo
         
 }
 
-export const add_items = catchAsyncError(async(req,res) =>{
-        let errors_quantity = []
-        let errors_product = []
+export const add_items = catchAsyncError(async(req,res,next) =>{
+        let errors= []
                 let decoded = req.user
-                if(decoded.role == "user") {
                 let user = await User.findById(decoded.id)
-                if(user.is_active){
+
+                if(!user.is_active)
+                         return next(new AppErrors("User account is inactive", 403));
+
                 for(let item of req.body.cart_info){
-                        let product = user.cart_items.find(element=> element.product.toString() === item.productId)
-                        let finalquantity = item.quantity || 1
-                        if (product){
-                                let currentquantity = product.quantity
-                                let checkedquantity = await stockCheck(item.productId , currentquantity + finalquantity)
-                                if(typeof checkedquantity !== "string" ){
-                                        product.quantity= currentquantity + finalquantity
+                         try {
+                                let finalquantity = item.quantity || 1
+                                let product = await stockCheck(item.productId, finalquantity)
+                                const cartItem = user.cart_items.find(
+                                        el => el.product.toString() === item.productId
+                                )
+                                if (cartItem){
+                                       let newQuantity = cartItem.quantity + finalquantity
+                                        await stockCheck(item.productId, newQuantity)
+                                        cartItem.quantity = newQuantity
+
                                 }
-                                else if(checkedquantity == `${item.productId} not found`){
-                                        errors_product.push(checkedquantity)
-                                }
-                                else {
-                                        errors_quantity.push(checkedquantity)
-                                }
-                        }
-                        else{
-                                let checked = await stockCheck(item.productId, finalquantity)
-                                if(typeof checked  !== "string"){
-                                      user.cart_items.push({
+                                else{
+                                        user.cart_items.push({
                                         product : item.productId,
                                         quantity : finalquantity
                                       })
+
                                 }
-                                else if(checked == `${item.productId} not found`){
-                                        errors_product.push(checked)
-                                }
-                                else {
-                                        errors_quantity.push(checked)
-                                }
-                        }
-                };
+                         }catch(err){
+                                errors.push({
+                                productId: item.productId,
+                                message: err.message
+                                })
+                         }
+                } 
                 await user.save();
-                if (errors_product.length == 0 && errors_quantity.length == 0)
-                        return res.status(200).json({message : "All items added successfully" , cart: user.cart_items })
-                else if(errors_product.length == 0 && errors_quantity.length != 0){
-                        return res.status(200).json({message : "Some items couldn't be added" , stock_unavailable : errors_quantity , cart: user.cart_items})
+
+                if (errors.length > 0){
+                        return res.status(200).json({
+                                message : "Some items couldn't be added" , 
+                                errors , 
+                                cart: user.cart_items
+                        })
                 }
-                else if(errors_product.length != 0 && errors_quantity.length == 0){
-                        return res.status(400).json({data : errors_product})
-                }
-                else{
-                        return res.status(200).json({notfoundproducts : errors_product , fewquantity : errors_quantity , cart :  user.cart_items})
-                }
-                }
-                else{
-                        return res.status(403).json({message :"User account is inactive"})
-                }       
-        }     
-        else{
-                return res.status(403).json({message : "You don't have permission to add items in cart"})
-        }           
+                 return res.status(200).json({
+                        message : "All items added successfully" , 
+                        cart: user.cart_items })
 })
 
-export const delete_item = catchAsyncError (async(req , res)=>{
-        let errors_product = []
+export const delete_item = catchAsyncError (async(req , res , next)=>{
                 let decoded = req.user
                 let target_id = req.params.id
-                if(decoded.role == "user"){
                         let user = await User.findById(decoded.id)
-                        if(user.is_active){
-                                       let index =  user.cart_items.findIndex(element => element.product.toString() === target_id)
-                                       if(index === -1){
-                                        errors_product.push(`${target_id} not found in cart`)
+                        if(!user.is_active)
+                         return next(new AppErrors("User account is inactive", 403));
+
+                                       let cartItem =  user.cart_items.find(element => element.product.toString() === target_id)
+                                       if(!cartItem){
+                                        throw new AppErrors(`Product with ID ${target_id} not found in cart`, 404)
                                        }
-                                       else{
-                                        user.cart_items.splice(index , 1)
-                                       }
-                                        
-                                await user.save();
-                                if(errors_product.length == 0){
-                                        res.status(200).json({message:"item removed successfully" , data : user.cart_items})
-                                }
-                                else{
-                                        res.status(400).json({data : errors_product ,  cart : user.cart_items})
-                                }
-                        }
-                        else{
-                                return res.status(403).json({message :"User account is inactive"})
-                        }
-                }
-                else{
-                        res.status(403).json({message : "You don't have the permission to delete item from cart"})
-                }
+                                        const updatedUser = await User.findByIdAndUpdate(
+                                                        decoded.id,
+                                                        { $pull: { cart_items: { product: target_id } } },
+                                                        { new: true })
+
+                                res.status(200).json({
+                                message: "Item removed successfully",
+                                cart: updatedUser.cart_items
+                                })
 })
 
 
-export const update_quantity = catchAsyncError (async(req , res)=>{
-        let errors_quantity = []
-        let errors_product = []
+export const update_quantity = catchAsyncError (async(req , res , next)=>{
+        let errors= []
                 let decoded = req.user
-                if(decoded.role == "user"){
                         let user = await User.findById(decoded.id)
-                        if(user.is_active){
+                        if (!user.is_active) {
+                           return next(new AppErrors("User account is inactive", 403));
+                        }
                                 for(let item of req.body.cart_info){
-                                       let index =  user.cart_items.findIndex(element => element.product.toString() === item.productId)
-                                       if(index === -1){
-                                        errors_product.push(`${item.productId} not found in cart`)
-                                        continue;
-                                       }
-                                       let cartItem = user.cart_items[index]
-                                       if(item.quantity!== undefined){
-                                        let productstock = await stockCheck(item.productId , item.quantity)
-                                        if(typeof productstock === "string"){
-                                                errors_quantity.push(productstock)
-                                        }
-                                        else if (item.quantity == 0){
-                                                        user.cart_items.splice(index , 1)
+                                        try {
+                                                if (item.quantity === undefined) {
+                                                        throw new AppErrors("Please provide quantity", 400)
+                                                }
+
+                                       let cartItem  =  user.cart_items.find(element => element.product.toString() === item.productId)
+                                       if(!cartItem)
+                                        throw new AppErrors(`Product with ID ${item.productId} not found in cart`, 404)
+                                        if (item.quantity === 0) {
+                                                user.cart_items = user.cart_items.filter(el => el.product.toString() !== item.productId)
                                         }
                                         else{
+                                                await stockCheck(item.productId, item.quantity)
                                                 cartItem.quantity = item.quantity
+
                                         }
-                                       }
-                                       else
-                                         return res.status(400).json({message :" please provide quantity"})
+                                }catch(err){
+                                         errors.push({
+                                         productId: item.productId,
+                                        message: err.message
+                                        })
                                 }
+                        }
                                 await user.save();
-                                if(errors_product.length == 0 && errors_quantity.length == 0 ){
-                                        res.status(200).json({message:"quantities updated successfully" , data : user.cart_items})
-                                }
-                                else if(errors_product.length == 0 && errors_quantity.length != 0){
-                                        res.status(200).json({message :" some quantities couldn't be updated" , error : errors_quantity , data : user.cart_items})
-                                }
-                                else if(errors_product.length != 0 && errors_quantity.length == 0){
-                                        res.status(400).json({data : errors_product})
-                                }
-                                else{
-                                        res.status(200).json({notfoundproducts : errors_product , quantityerrors :errors_quantity , data : user.cart_items})
-                                }
+                                 if (errors.length > 0) {
+                                        return res.status(200).json({
+                                        message: "Some quantities could not be updated",
+                                        errors,
+                                        cart: user.cart_items
+                                })
                         }
-                        else{
-                                return res.status(403).json({message :"User account is inactive"})
-                        }
-                }
-                else{
-                        res.status(403).json({message : "You don't have the permission to remove items"})
-                }
+                                    res.status(200).json({
+                                    message: "Cart quantities updated successfully",
+                                    cart: user.cart_items
+                                    })
 })
 
-export const viewCart = catchAsyncError (async(req , res) =>{
+export const viewCart = catchAsyncError (async(req , res ,next) =>{
         let decoded = req.user
-        if(decoded.role != "user"){
-                return res.status(403).json({message : "You don't have cart"})
-        }
-        let user = await User.findById(decoded.id).select(["cart_items.product","cart_items.quantity" , "-_id", "is_active" ]).populate("cart_items.product" , { name: 1 , price: 1, description: 1 , _id: 0 ,stock:1 , image : 1})
-        if(!user.is_active){
-                return res.status(403).json({message :"User account is inactive"})
-        }
-        if(user.cart_items.length === 0 ){
-                return res.status(200).json({message : "Your cart is empty!"})
-        }
-        res.status(200).json(user.cart_items)
-} )
 
-export const clearCart = catchAsyncError (async(req ,res) =>{
-        let decoded = req.user
-        if(decoded.role != "user"){
-                return res.status(403).json({message : "You don't have cart"})
-        }
         let user = await User.findById(decoded.id)
+        .select(["cart_items.product","cart_items.quantity" , "-_id", "is_active" ])
+        .populate("cart_items.product" 
+        , { name: 1 , price: 1, description: 1 , _id: 0 ,stock:1 , image : 1})
+
         if(!user.is_active){
-                return res.status(403).json({message :"User account is inactive"})
+                return next(new AppErrors("User account is inactive", 403));
+        }
+
+        if(user.cart_items.length === 0 ){
+                return res.status(200).json({
+                message: "Your cart is empty",
+                cart: []
+        })
+        }
+
+        res.status(200).json(user.cart_items)
+})
+
+export const clearCart = catchAsyncError (async(req ,res ,next) =>{
+        let decoded = req.user
+        let user = await User.findById(decoded.id)
+
+        if(!user.is_active){
+                return next(new AppErrors("User account is inactive", 403));
         }
         if(user.cart_items.length === 0 ){
-                return res.status(200).json({message : "Your cart is empty already!"})
+                return res.status(200).json({
+                message: "Your cart is empty",
+                cart: []
+        })
         }
         user.cart_items = []
         await user.save()
         res.status(200).json({message : "Cart cleared successfully" , data : user.cart_items})
 })
 
-export const checkout = catchAsyncError (async(req ,res)=>{
-        let decoded = req.user
-        let total = 0
-        let order = []
-        let user = await User.findById(decoded.id).populate("cart_items.product")
-        if(!user.is_active){
-                return res.status(403).json({message :"User account is inactive"})
-        }
-        if(user.cart_items.length === 0 ){
-                return res.status(200).json({message : "Your cart is empty!"})
-        }
-        if(!req.body.paymentmethod){
-                return res.status(400).json({message : "You must specify payment method"})
-        }
-        for(let item of user.cart_items){
-                let valid = await stockCheck(item.product._id , item.quantity)
-                if(typeof valid === "string"){
-                        return res.status(400).json({message : "Can't proceed to checkout due to missing products in the stock"})
-                }
-                        total += item.product.price * item.quantity
-                        item.product.stock -= item.quantity
-                        await item.product.save()
-                        order.push({
-                                product : item.product.name,
-                                totalprice : item.product.price * item.quantity
-                        })
-        }
-        user.cart_items = []
-        await user.save()
-        return res.status(200).json({message : "Order placed successfully", order : {products : order , total_amount : total , PaymentMethod : req.body.paymentmethod}})
-})
+// export const checkout = catchAsyncError (async(req ,res)=>{
+//         let decoded = req.user
+//         let total = 0
+//         let order = []
+//         let user = await User.findById(decoded.id).populate("cart_items.product")
+//         if(!user.is_active){
+//                 return res.status(403).json({message :"User account is inactive"})
+//         }
+//         if(user.cart_items.length === 0 ){
+//                 return res.status(200).json({message : "Your cart is empty!"})
+//         }
+//         if(!req.body.paymentmethod){
+//                 return res.status(400).json({message : "You must specify payment method"})
+//         }
+//         for(let item of user.cart_items){
+//                 let valid = await stockCheck(item.product._id , item.quantity)
+//                 if(typeof valid === "string"){
+//                         return res.status(400).json({message : "Can't proceed to checkout due to missing products in the stock"})
+//                 }
+//                         total += item.product.price * item.quantity
+//                         item.product.stock -= item.quantity
+//                         await item.product.save()
+//                         order.push({
+//                                 product : item.product.name,
+//                                 totalprice : item.product.price * item.quantity
+//                         })
+//         }
+//         user.cart_items = []
+//         await user.save()
+//         return res.status(200).json({message : "Order placed successfully", order : {products : order , total_amount : total , PaymentMethod : req.body.paymentmethod}})
+// })

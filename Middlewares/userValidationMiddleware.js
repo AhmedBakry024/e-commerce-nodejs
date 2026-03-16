@@ -3,7 +3,8 @@ import {
     loginValidationSchema,
     updatePasswordValidationSchema, 
     resetPasswordValidationSchema,
-    updateProfileValidationSchema
+    updateProfileValidationSchema,
+    cartValidationSchema
 } from "../Utils/Validations/userValidaion.js";
 import AppErrors from "../Utils/appErrors.js";
 export const registerValidation = (req, res, next) => {
@@ -47,3 +48,10 @@ export const updateProfileValidation = (req, res, next) => {
     next();
 };
 
+export const cartValidation = (req, res, next) => {
+    const { error } = cartValidationSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next(new AppErrors(error.details[0].message, 400));
+    }
+    next();
+};
