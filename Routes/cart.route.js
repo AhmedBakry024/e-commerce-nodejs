@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { add_items , delete_item  , viewCart , clearCart , update_quantity } from "../Controllers/cart.controller.js";
 import { protect , isUser } from "../Middlewares/protect.js";
+import { cartValidation } from "../Middlewares/userValidationMiddleware.js";
 
 const CartRoutes = Router()
 CartRoutes.use(protect)
 CartRoutes.use(isUser)
+CartRoutes.use(cartValidation)
 
 CartRoutes.post("/additems" , add_items);
 CartRoutes.delete("/deleteitem/:id" , delete_item);

@@ -163,7 +163,9 @@ export const checkout = async (req, res ,next) => {
         orderItems,
         payment_method:  wayToPay === "card" ? paymentMethod : "Cash",
         payment_status: wayToPay === "card" ? paymentIntent.status : paymentStatus,
-        currency
+        currency,
+        amount,
+        voucher: voucherDoc ? voucherDoc._id : null
     });
 
         if(voucherDoc){
@@ -176,7 +178,7 @@ export const checkout = async (req, res ,next) => {
 
    let allproducts  = [] 
 
-    for(item of orderItems){
+    for(let item of orderItems){
 
       allproducts.push({
         productName : item.name,
@@ -194,8 +196,6 @@ export const checkout = async (req, res ,next) => {
         currency,
         status: paymentStatus,
         allproducts,
-        total_amount : order.total_price
-        // orderId: order._id
     });
 
 
